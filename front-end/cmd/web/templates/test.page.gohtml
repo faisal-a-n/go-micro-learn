@@ -1,0 +1,155 @@
+{{template "base" .}}
+
+{{define "content" }}
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                <h1 class="mt-5">Test microservices</h1>
+                <hr>
+                <a id="brokerBtn" class="btn btn-outline-secondary mr-5" href="javascript:void(0)">
+                    Test Broker
+                </a>
+                <a id="authBrokerBtn" class="btn btn-outline-secondary" href="javascript:void(0)">
+                    Test Broker->Auth
+                </a>
+                <a id="loggerBrokerBtn" class="btn btn-outline-secondary" href="javascript:void(0)">
+                    Test Broker->Logger
+                </a>
+                <a id="loggerBrokerGRPCBtn" class="btn btn-outline-secondary" href="javascript:void(0)">
+                    Test Broker-GRPC->Logger-GRPC
+                </a>
+                <a id="mailerBrokerBtn" class="btn btn-outline-secondary" href="javascript:void(0)">
+                    Test Broker->Mailer
+                </a>
+                <div id="output" class="mt-5" style="outline: 1px solid silver; padding: 2em; max-height: 300px; overflow: auto;">
+                    <span class="text-muted">Output shows here...</span>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <h4 class="mt-5">Sent</h4>
+                <div class="mt-1" style="outline: 1px solid silver; padding: 2em;">
+                    <pre id="payload"><span class="text-muted">Nothing sent yet...</span></pre>
+                </div>
+            </div>
+            <div class="col">
+                <h4 class="mt-5">Received</h4>
+                <div class="mt-1" style="outline: 1px solid silver; padding: 2em;">
+                    <pre id="received"><span class="text-muted">Nothing received yet...</span></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+{{end}}
+
+{{define "js"}}
+    <script>
+        let brokerBtn = document.getElementById("brokerBtn")
+        let authBrokerBtn = document.getElementById("authBrokerBtn")
+        let mailerBrokerBtn = document.getElementById("mailerBrokerBtn")
+        let loggerBrokerBtn = document.getElementById("loggerBrokerBtn")
+        let loggerBrokerGRPCBtn = document.getElementById("loggerBrokerGRPCBtn")
+        let output = document.getElementById("output")
+        let sent = document.getElementById("payload")
+        let received = document.getElementById("received")
+
+        brokerBtn.addEventListener('click', e => {
+            const body = {
+                method: "POST"
+            }
+            fetch("http:\/\/localhost:8080/",  body)
+            .then(response => response.json())
+            .then(data => {
+                sent.innerHTML = "Empty post request"
+                received.innerHTML = JSON.stringify(data, undefined, 4)
+                if(data.code != 200) {
+                    console.log(data.message)
+                } else {
+                    output.innerHTML += `<br><strong>Reponse from broker-service</strong>: ${data.message}` 
+                }
+            })
+            .catch(e => {
+                output.innerHTML += `<br><strong>Error</strong>: ${e}` 
+            })
+        })
+
+        function sendServiceRequest(payload, endpoint) {
+            const headers = new Headers()
+            headers.append("Content-Type", "application/json")
+            
+            const body = {
+                method: "POST",
+                headers: headers,
+                body: JSON.stringify(payload)
+            }
+
+            fetch("http:\/\/localhost:8080/"+endpoint,  body)
+            .then(response => response.json())
+            .then(data => {
+                sent.innerHTML = JSON.stringify(payload, undefined, 4)
+                received.innerHTML = JSON.stringify(data, undefined, 4)
+                if(data.code != 200) {
+                    output.innerHTML += `<br><strong>Error</strong>: ${data.message}` 
+                } else {
+                    output.innerHTML += `<br><strong>Reponse from ${payload.action}->broker</strong>: ${data.message}` 
+                }
+            })
+            .catch(e => {
+                output.innerHTML += `<br><strong>Error</strong>: ${e}` 
+            })
+        }
+        authBrokerBtn.addEventListener('click', e => {
+            const payload = {
+                action: "authenticate",
+                auth: {
+                    email: "admin@example.com",
+                    password: "verysecret"
+                }
+            }
+            sendServiceRequest(payload, "handle")
+        })
+        
+        mailerBrokerBtn.addEventListener('click', e => {
+            const payload = {
+                action: "mail",
+                mail: {
+                    from: "admin@example.com",
+                    to: "jane.doe@ayx.com",
+                    subject: "Mail Test",
+                    body: "Hello there!",
+                    attachments: []
+                }
+            }
+            sendServiceRequest(payload, "handle")
+        })
+
+        loggerBrokerBtn.addEventListener('click', e => {
+            const payload = {
+                action: "log",
+                log: {
+                    name: "event",
+                    data: JSON.stringify({
+                        email: "admin@xyz.com",
+                        action: "login"
+                    })
+                }
+            }
+            sendServiceRequest(payload, "handle")
+        })
+
+        loggerBrokerGRPCBtn.addEventListener('click', e => {
+            const payload = {
+                action: "grpc-log",
+                log: {
+                    name: "event-grpc",
+                    data: JSON.stringify({
+                        email: "admin@xyz.com",
+                        action: "login"
+                    })
+                }
+            }
+            sendServiceRequest(payload, "grpc-log")
+        })
+    </script>
+{{end}}
